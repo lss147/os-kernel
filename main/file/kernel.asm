@@ -10,7 +10,7 @@ LABEL_GDT:          Descriptor        0,            0,                   0
 LABEL_DESC_CODE32:  Descriptor        0,      SegCode32Len - 1,       DA_C + DA_32
 LABEL_DESC_VIDEO:   Descriptor        0B8000h,         0ffffh,            DA_DRW
 LABEL_DESC_VRAM:    Descriptor        0,         0ffffffffh,            DA_DRW
-LABEL_DESC_STACK:   Descriptor        0,             TopOfStack,        DA_DRW+DA_32
+LABEL_DESC_STACK:   Descriptor        0,             TopOfStack,        DA_DRWA+DA_32
 
 GdtLen     equ    $ - LABEL_GDT
 GdtPtr     dw     GdtLen - 1
@@ -20,6 +20,15 @@ SelectorCode32    equ   LABEL_DESC_CODE32 -  LABEL_GDT
 SelectorVideo     equ   LABEL_DESC_VIDEO  -  LABEL_GDT
 SelectorStack     equ   LABEL_DESC_STACK  -  LABEL_GDT
 SelectorVram      equ   LABEL_DESC_VRAM   -  LABEL_GDT
+
+LABEL_IDT:
+%rep  255
+    Gate  SelectorCode32, SpuriousHandler,0, DA_386IGate
+%endrep
+
+IdtLen  equ $ - LABEL_IDT
+IdtPtr  dw  IdtLen - 1
+        dd  0
 
 
 [SECTION  .s16]
@@ -34,6 +43,8 @@ LABEL_BEGIN:
      mov   al, 0x13
      mov   ah, 0
      int   0x10
+
+	call init8259A
 
      xor   eax, eax
      mov   ax,  cs
@@ -63,6 +74,15 @@ LABEL_BEGIN:
      lgdt  [GdtPtr]
 
      cli   ;关中断
+	 
+	 ;准备中断向量表
+	   xor   eax, eax
+     mov   ax,  ds
+     shl   eax, 4
+     add   eax, LABEL_IDT
+     mov   dword [IdtPtr + 2], eax
+     lidt  [IdtPtr]
+	 
 
      in    al,  92h
      or    al,  00000010b
@@ -73,6 +93,57 @@ LABEL_BEGIN:
      mov   cr0, eax
 
      jmp   dword  SelectorCode32: 0
+	 
+
+ init8259A:
+     mov  al, 011h
+     out  02h, al
+     call io_delay
+
+     out 0A0h, al
+     call io_delay
+
+     mov al, 020h
+     out 021h, al
+     call io_delay
+
+     mov  al, 028h
+     out  0A1h, al
+     call io_delay
+    
+     mov  al, 004h
+     out  021h, al
+     call io_delay
+
+     mov  al, 002h
+     out  0A1h, al
+     call io_delay
+
+     mov  al, 003h
+     out  021h, al
+     call io_delay
+
+     out  0A1h, al
+     call io_delay
+
+     mov  al, 11111101b;允许接收键盘中断
+     out  021h, al
+     call io_delay
+
+     mov  al, 11111111b
+     out  0A1h, al
+     call io_delay
+
+     ret
+
+io_delay:
+     nop
+     nop
+     nop
+     nop
+     ret
+	 
+	 
 
      [SECTION .s32]
      [BITS  32]
@@ -84,10 +155,19 @@ LABEL_BEGIN:
 
      mov  ax, SelectorVram
      mov  ds,  ax
+	 
+	 mov  ax, SelectorVideo
+     mov  gs, ax
 
 C_CODE_ENTRY:
-
+	sti
      %include "write_vga_desktop.asm"
+	 jmp $
+	 
+	 _SpuriousHandler:
+		SpuriousHandler  equ _SpuriousHandler - $$
+		call intHandlerFromC
+	iretd
 
 
      io_hlt:  ;void io_hlt(void);

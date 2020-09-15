@@ -67,13 +67,13 @@ public class OperatingSystem {
     }
 
     public void makeFllopy()   {
-        writeFileToFloppy("kernel.bat", false, 1, 2);
+        writeFileToFloppy("D:\\javaproject\\os-kernel\\src\\main\\file\\kernel.bat", false, 1, 2);
 
-        floppyDisk.makeFloppy("system.img");
+        floppyDisk.makeFloppy("D:\\javaproject\\os-kernel\\src\\main\\file\\system.img");
     }
 
     public static void main(String[] args) {
-        OperatingSystem op = new OperatingSystem("boot.bat");
+        OperatingSystem op = new OperatingSystem("D:\\javaproject\\os-kernel\\src\\main\\file\\boot.bat");
         op.makeFllopy();
     }
 }
