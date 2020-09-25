@@ -23,7 +23,7 @@ SelectorVram      equ   LABEL_DESC_VRAM   -  LABEL_GDT
 
 LABEL_IDT:
 %rep  255
-    Gate  SelectorCode32, SpuriousHandler,0, DA_386IGate
+    Gate  SelectorCode32, SpuriousHandler,0, DA_386IGate;SpuriousHandler是键盘中断处理程序的位置，定义在c语言文件中
 %endrep
 
 IdtLen  equ $ - LABEL_IDT
@@ -221,7 +221,16 @@ io_in8:
         push eax
         popfd
         ret
+	io_stihlt:
+		sti
+		HLT
+		ret
+	io_sti:
+		sti
+		ret
 		
+		
+	
 	%include "fontData.inc"
 		
 SegCode32Len   equ  $ - LABEL_SEG_CODE32
